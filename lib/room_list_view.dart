@@ -20,17 +20,16 @@ class _RoomListViewState extends State<RoomListView> {
     return "${days[now.weekday - 1]}_${hour.toString().padLeft(2, '0')}:00";
   }
 
-  // Double Factor Confirmation Dialog
   Future<void> _showCancelConfirmation(String roomID, String hour) async {
     final TextEditingController confirmController = TextEditingController();
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Confirm Cancellation"),
+        title: const Text("Verify Cancellation"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("To cancel Room $roomID at $hour, type 'CANCEL'."),
+            Text("To cancel Room $roomID, please type 'CANCEL' to confirm."),
             const SizedBox(height: 15),
             TextField(
               controller: confirmController,
@@ -55,7 +54,6 @@ class _RoomListViewState extends State<RoomListView> {
     );
   }
 
-  // Extra Lecture Form
   Future<void> _showScheduleForm(String roomID, String hour) async {
     final TextEditingController subjectController = TextEditingController();
     return showDialog(
@@ -93,27 +91,16 @@ class _RoomListViewState extends State<RoomListView> {
     final supabase = Supabase.instance.client;
     final String todayDate = DateTime.now().toIso8601String().split('T')[0];
 
-    try {
-      // Logic: Use upsert to handle both first-time and repeated overrides
-      await supabase.from('overrides').upsert({
-        'room_id': roomID,
-        'override_date': todayDate,
-        'override_hour': hour,
-        'status': status,
-        'subject_name': subjectName,
-        'teacher_id': supabase.auth.currentUser!.id
-      }, onConflict: 'room_id,override_date,override_hour');
+    await supabase.from('overrides').upsert({
+      'room_id': roomID,
+      'override_date': todayDate,
+      'override_hour': hour,
+      'status': status,
+      'subject_name': subjectName,
+      'teacher_id': supabase.auth.currentUser!.id
+    }, onConflict: 'room_id,override_date,override_hour');
 
-      setState(() {});
-    } catch (e) {
-      // Error catch for Moto G73 debugging
-      print("OVERRIDE ERROR: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Action failed. Check permissions or internet."))
-        );
-      }
-    }
+    setState(() {});
   }
 
   @override
@@ -169,6 +156,12 @@ class _RoomListViewState extends State<RoomListView> {
               }
 
               bool isOccupied = subject != "Empty" && !subject.contains("CANCELLED");
+
+              // SMART CONFLICT PREVENTION: Check if someone else reserved this
+              bool isReservedByOthers = override != null &&
+                  override['status'] == 'RESERVED' &&
+                  override['teacher_id'] != supabase.auth.currentUser!.id;
+
               Color statusColor = roomType == "Staffroom" ? Colors.grey : (isOccupied ? Colors.red : Colors.green);
 
               return Card(
@@ -196,24 +189,29 @@ class _RoomListViewState extends State<RoomListView> {
                         children: [
                           if (roomType == "Staffroom")
                             const Text("⚠️ Staffroom: Modifications locked.", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+                          else if (isReservedByOthers)
+                          // Warn that this class is already reserved
+                            const Text("🔒 Reserved by another professor. Only they can modify this slot.",
+                                style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.bold))
                           else if (userRole == 'teacher' && !isClosed) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: isOccupied
-                                  ? ElevatedButton.icon(
-                                onPressed: () => _showCancelConfirmation(roomID, currentHourString),
-                                icon: const Icon(Icons.cancel),
-                                label: const Text("Confirm & Cancel Lecture"),
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                              )
-                                  : ElevatedButton.icon(
-                                onPressed: () => _showScheduleForm(roomID, currentHourString),
-                                icon: const Icon(Icons.add_circle),
-                                label: const Text("Schedule Extra Lecture"),
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                              const Divider(),
+                              SizedBox(
+                                width: double.infinity,
+                                child: isOccupied
+                                    ? ElevatedButton.icon(
+                                  onPressed: () => _showCancelConfirmation(roomID, currentHourString),
+                                  icon: const Icon(Icons.cancel),
+                                  label: const Text("Confirm & Cancel Lecture"),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                )
+                                    : ElevatedButton.icon(
+                                  onPressed: () => _showScheduleForm(roomID, currentHourString),
+                                  icon: const Icon(Icons.add_circle),
+                                  label: const Text("Schedule Extra Lecture"),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
                         ],
                       ),
                     )

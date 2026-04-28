@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:animations/animations.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile_scanner/mobile_scanner.dart'; //
 import 'building_floors_view.dart';
+import 'room_list_view.dart';
 import 'search_view.dart';
 import 'login_view.dart';
 
@@ -24,6 +26,37 @@ class _CampusHomeState extends State<CampusHome> {
     });
   }
 
+  // QR Logic: Parse scanned string like "Building 1,2"
+  void _openQRScanner() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: MobileScanner(
+          onDetect: (capture) {
+            final List<Barcode> barcodes = capture.barcodes;
+            for (final barcode in barcodes) {
+              final String code = barcode.rawValue ?? "";
+              if (code.contains(",")) {
+                final parts = code.split(",");
+                Navigator.pop(context); // Close scanner
+                // Navigate directly to the floor
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (context) => RoomListView(
+                    buildingName: parts[0],
+                    floor: int.parse(parts[1]),
+                    color: Colors.indigo,
+                  ),
+                ));
+              }
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final supabase = Supabase.instance.client;
@@ -33,16 +66,18 @@ class _CampusHomeState extends State<CampusHome> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          // NEW: QR SCANNER BUTTON
+          icon: const Icon(Icons.qr_code_scanner, color: Colors.indigo),
+          onPressed: _openQRScanner,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.grey),
             onPressed: () async {
               await supabase.auth.signOut();
               if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginView()),
-                );
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
               }
             },
           ),
