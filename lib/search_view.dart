@@ -5,133 +5,95 @@ class SearchView extends StatefulWidget {
   const SearchView({super.key});
 
   @override
-  State<SearchView> createState() => _SearchViewState();
+  State<SearchView> createState() => _SearchViewState(); // FIXED: Mapped to correct class name
 }
 
-class _SearchViewState extends State<SearchView> {
+class _SearchViewState extends State<SearchView> { // FIXED: Changed from _SearchViewController
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _searchResults = [];
   bool _isLoading = false;
-  bool _isOutsideHours = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _checkCollegeHours();
-  }
+  // =========================================================================
+  // 🛠️ TESTING MODE:
+  // Change '11' to 'DateTime.now().hour' for normal mode
+  final int testHour = 11;
+  // =========================================================================
 
-  // Check if current time is outside 8 AM - 6 PM
-  void _checkCollegeHours() {
-    final now = DateTime.now();
-    if (now.hour < 8 || now.hour >= 18) {
-      setState(() => _isOutsideHours = true);
-    }
-  }
-
-  // Helper to match your Supabase column naming: Day_HH:00
   String _getCurrentTimeColumn() {
     final now = DateTime.now();
     final days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    final dayName = days[now.weekday - 1];
-
-    // For testing tonight (Sat 9:40 PM), you can temporarily change this to "10:00"
-    final hourString = "${now.hour.toString().padLeft(2, '0')}:00";
-    return "${dayName}_$hourString";
+    return "${days[now.weekday - 1]}_${testHour.toString().padLeft(2, '0')}:00";
   }
 
   Future<void> _performSearch(String query) async {
     if (query.isEmpty) return;
-
-    // Safety: Don't query if the column doesn't exist in the CSV
-    if (_isOutsideHours) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("College is closed. Try searching tomorrow after 8 AM!")),
-      );
+    if (testHour < 8 || testHour >= 18) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("College is closed in Test Mode.")));
       return;
     }
 
     setState(() => _isLoading = true);
-
     final timeColumn = _getCurrentTimeColumn();
     final supabase = Supabase.instance.client;
 
     try {
-      final response = await supabase
-          .from('timetables')
-          .select()
-          .ilike(timeColumn, '%$query%') // Finds partial matches like "Math" for "Maths"
+      final response = await supabase.from('timetables').select()
+          .ilike(timeColumn, '%$query%')
           .order('Building', ascending: true);
-
-      setState(() {
-        _searchResults = response;
-        _isLoading = false;
-      });
+      setState(() { _searchResults = response; _isLoading = false; });
     } catch (e) {
       setState(() => _isLoading = false);
-      print("Search Error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Search failed: Column for this hour not found.")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Search failed. Check your connection.")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isClosed = testHour < 8 || testHour >= 18;
+    final String timeSlotRange = "${testHour.toString().padLeft(2, '0')}:00 - ${(testHour + 1).toString().padLeft(2, '0')}:00";
+
     return Scaffold(
       appBar: AppBar(
         title: TextField(
           controller: _searchController,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: "Search subject",
+          decoration: InputDecoration(
+            hintText: "Search 'Empty' (Hour: $testHour:00)",
             border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.white70),
+            hintStyle: const TextStyle(color: Colors.white70),
           ),
           style: const TextStyle(color: Colors.white, fontSize: 18),
           onSubmitted: _performSearch,
         ),
         backgroundColor: Colors.indigo[900],
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () => _performSearch(_searchController.text),
-          ),
-        ],
       ),
-      body: _isOutsideHours
+      body: isClosed
           ? _buildClosedMessage()
           : _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _searchResults.isEmpty
           ? _buildEmptyState()
-          : _buildResultsList(),
+          : _buildResultsList(timeSlotRange),
     );
   }
 
-  Widget _buildClosedMessage() {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.nightlight_round, size: 80, color: Colors.indigo[200]),
-          const SizedBox(height: 20),
-          const Text(
-            "College is currently closed",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const Text("Type 'Empty' to find free rooms"),
+          const SizedBox(height: 10),
+          ActionChip(
+            label: const Text("Find Free Rooms Now"),
+            onPressed: () { _searchController.text = "Empty"; _performSearch("Empty"); },
           ),
-          const Text("Live search resumes at 8:00 AM"),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Text("Type 'Empty' to find free rooms across campus"),
-    );
-  }
-
-  Widget _buildResultsList() {
+  Widget _buildResultsList(String timeSlot) {
     final timeColumn = _getCurrentTimeColumn();
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -142,35 +104,18 @@ class _SearchViewState extends State<SearchView> {
         final bool isEmpty = subject == "Empty";
 
         return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: (isEmpty ? Colors.green : Colors.red).withValues(alpha: 0.1),
-              child: Icon(
-                isEmpty ? Icons.check_circle : Icons.block,
-                color: isEmpty ? Colors.green : Colors.red,
-              ),
-            ),
-            title: Text("Room ${room['RoomID']}"),
-            subtitle: Text("${room['Building']} - Floor ${room['Floor']}"),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                    subject,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isEmpty ? Colors.green : Colors.indigo[900]
-                    )
-                ),
-                Text(room['Department'] ?? "", style: const TextStyle(fontSize: 10)),
-              ],
-            ),
+            leading: Icon(Icons.circle, color: isEmpty ? Colors.green : Colors.red),
+            title: Text("Room ${room['RoomID']} - ${room['Building']}"),
+            subtitle: Text("🕒 Time: $timeSlot"), //
+            trailing: Text(subject, style: TextStyle(fontWeight: FontWeight.bold, color: isEmpty ? Colors.green : Colors.indigo[900])),
           ),
         );
       },
     );
+  }
+
+  Widget _buildClosedMessage() {
+    return const Center(child: Text("College is closed. Search resumes at 8 AM."));
   }
 }
