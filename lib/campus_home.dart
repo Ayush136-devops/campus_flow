@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:animations/animations.dart';
 import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'building_floors_view.dart';
+import 'search_view.dart';
+import 'login_view.dart';
 
 class CampusHome extends StatefulWidget {
   const CampusHome({super.key});
@@ -23,17 +26,36 @@ class _CampusHomeState extends State<CampusHome> {
 
   @override
   Widget build(BuildContext context) {
+    final supabase = Supabase.instance.client;
+
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.grey),
+            onPressed: () async {
+              await supabase.auth.signOut();
+              if (context.mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginView()),
+                );
+              }
+            },
+          ),
+        ],
+      ),
       body: Stack(
         children: [
-          // The Building Grid
           AnimatedOpacity(
             opacity: _isLoaded ? 1.0 : 0.0,
             duration: const Duration(seconds: 1),
             child: Column(
               children: [
-                const SizedBox(height: 120),
+                const SizedBox(height: 60),
                 Expanded(
                   child: Row(
                     children: [
@@ -53,13 +75,12 @@ class _CampusHomeState extends State<CampusHome> {
               ],
             ),
           ),
-          // The Animating Title
           AnimatedAlign(
             duration: const Duration(seconds: 1),
             curve: Curves.easeInOutBack,
             alignment: _isLoaded ? Alignment.topCenter : Alignment.center,
             child: Padding(
-              padding: const EdgeInsets.only(top: 60.0),
+              padding: const EdgeInsets.only(top: 20.0),
               child: Text(
                 "CAMPUS FLOW",
                 style: TextStyle(
@@ -73,6 +94,19 @@ class _CampusHomeState extends State<CampusHome> {
           ),
         ],
       ),
+      floatingActionButton: AnimatedOpacity(
+        opacity: _isLoaded ? 1.0 : 0.0,
+        duration: const Duration(seconds: 1),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchView()));
+          },
+          label: const Text("Find Any Room"),
+          icon: const Icon(Icons.search),
+          backgroundColor: Colors.indigo[900],
+          foregroundColor: Colors.white,
+        ),
+      ),
     );
   }
 
@@ -83,7 +117,7 @@ class _CampusHomeState extends State<CampusHome> {
       closedElevation: 0,
       closedColor: Colors.transparent,
       closedBuilder: (context, action) => Container(
-        decoration: BoxDecoration(border: Border.all(color: Colors.grey.withOpacity(0.1))),
+        decoration: BoxDecoration(border: Border.all(color: Colors.grey.withValues(alpha: 0.1))),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

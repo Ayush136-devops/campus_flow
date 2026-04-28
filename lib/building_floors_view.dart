@@ -20,7 +20,7 @@ class BuildingFloorsView extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         itemCount: 4,
         itemBuilder: (context, index) {
-          int floorNum = 4 - index;
+          int floorNum = index + 1;
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
             child: OpenContainer(
