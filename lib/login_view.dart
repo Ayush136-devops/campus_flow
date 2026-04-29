@@ -13,31 +13,24 @@ class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
 
-  /// Logic to identify Student vs Teacher
-  /// Students: contain 2+ digits (e.g., khatal24)
-  /// Teachers: name.surname@vit.edu
   String getRoleFromEmail(String email) {
     RegExp studentRegex = RegExp(r'[a-zA-Z0-9._%+-]+[0-9]{2,}@vit\.edu');
     return studentRegex.hasMatch(email) ? 'student' : 'teacher';
   }
 
-  Future<void> _handleAuth() async {
+  Future _handleAuth() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // 1. Validation Checks
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter both email and password")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter both email and password")));
       return;
     }
 
     if (!email.endsWith('@vit.edu')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please use your official @vit.edu email")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please use your official @vit.edu email")));
       return;
     }
 
@@ -45,37 +38,20 @@ class _LoginViewState extends State<LoginView> {
     final supabase = Supabase.instance.client;
 
     try {
-      // 2. Attempt Sign In
       await supabase.auth.signInWithPassword(email: email, password: password);
     } catch (e) {
-      // 3. Fallback: If Sign In fails, attempt Sign Up (New User)
       try {
-        final AuthResponse res = await supabase.auth.signUp(
-          email: email,
-          password: password,
-        );
-
+        final AuthResponse res = await supabase.auth.signUp(email: email, password: password);
         if (res.user != null) {
-          // 4. Create Profile with the correct role
           final role = getRoleFromEmail(email);
-          await supabase.from('profiles').upsert({
-            'id': res.user!.id,
-            'email': email,
-            'role': role,
-          });
+          await supabase.from('profiles').upsert({'id': res.user!.id, 'email': email, 'role': role});
         }
       } catch (signupError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Authentication Error: ${signupError.toString()}")),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Authentication Error: ${signupError.toString()}")));
       }
     } finally {
-      // 5. Navigate to Home if session is active
       if (supabase.auth.currentUser != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const CampusHome()),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CampusHome()));
       }
       setState(() => _isLoading = false);
     }
@@ -87,78 +63,71 @@ class _LoginViewState extends State<LoginView> {
       backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // --- Branding Section ---
-              Icon(Icons.school_rounded, size: 80, color: Colors.indigo[900]),
-              const SizedBox(height: 20),
-              Text(
-                "CAMPUS FLOW",
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                  color: Colors.indigo[900],
-                ),
-              ),
-              const Text(
-                "VIT Pune Portal",
-                style: TextStyle(color: Colors.grey, letterSpacing: 1.2),
-              ),
-              const SizedBox(height: 50),
+              // Logo
+              Image.asset('assets/logo.png', height: 180), // Update with your actual asset path
+              const SizedBox(height: 40),
 
-              // --- Input Section ---
+              // Username Field
               TextField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: "College Email",
-                  hintText: "name.surname24@vit.edu",
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.person_outline),
+                  labelText: "Username",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
                 ),
               ),
               const SizedBox(height: 20),
 
+              // Password Field
               TextField(
                 controller: _passwordController,
-                obscureText: true,
+                obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: "Password",
                   prefixIcon: const Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  suffixIcon: IconButton(
+                    icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                  ),
+                  labelText: "Password",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
                 ),
               ),
-              const SizedBox(height: 35),
+              const SizedBox(height: 25),
 
-              // --- Button Section ---
+              // Login Button
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: _handleAuth,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo[900],
+                  backgroundColor: const Color(0xFF5C6BC0), // Matching your UI
                   foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
+                  minimumSize: const Size(200, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
+                child: const Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+
+              const SizedBox(height: 30),
+              TextButton(
+                onPressed: () {},
                 child: const Text(
-                  "LOGIN / SIGN UP",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  "Teachers will be automatically granted override access.",
+                  style: TextStyle(
+                      color: Color(0xFF5C6BC0),
+                      fontWeight: FontWeight.bold
+                  ),
                 ),
               ),
 
-              const SizedBox(height: 20),
-              const Text(
-                "Teachers will be automatically granted override access.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
+              const SizedBox(height: 50),
+              const Text("Powered By EduplusCampus", style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
         ),

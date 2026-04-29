@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'campus_home.dart';
-import 'login_view.dart'; // Ensure you have created this file
+import 'login_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,10 +26,15 @@ class CampusFlowApp extends StatelessWidget {
       title: 'Campus Flow',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+        // Updated Primary Color to Deep Blue
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E3A8A)),
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Color(0xFF1E3A8A),
+          foregroundColor: Colors.white,
+        ),
       ),
-      // Check if user is already logged in
       home: supabase.auth.currentUser == null
           ? const LoginView()
           : const CampusHome(),

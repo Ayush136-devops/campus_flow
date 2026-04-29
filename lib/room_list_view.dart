@@ -13,14 +13,12 @@ class RoomListView extends StatefulWidget {
 }
 
 class _RoomListViewState extends State<RoomListView> {
-
   String _getCurrentTimeColumn(int hour) {
     final now = DateTime.now();
     final days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     return "${days[now.weekday - 1]}_${hour.toString().padLeft(2, '0')}:00";
   }
 
-  // 1. DOUBLE FACTOR CONFIRMATION DIALOG
   Future<void> _showCancelConfirmation(String roomID, String hour) async {
     final TextEditingController confirmController = TextEditingController();
     return showDialog(
@@ -55,7 +53,6 @@ class _RoomListViewState extends State<RoomListView> {
     );
   }
 
-  // 2. EXTRA LECTURE FORM
   Future<void> _showScheduleForm(String roomID, String hour) async {
     final TextEditingController subjectController = TextEditingController();
     return showDialog(
@@ -92,8 +89,6 @@ class _RoomListViewState extends State<RoomListView> {
   Future<void> _handleOverride(String roomID, String hour, String status, String subjectName) async {
     final supabase = Supabase.instance.client;
     final String todayDate = DateTime.now().toIso8601String().split('T')[0];
-
-
     final String userEmail = supabase.auth.currentUser?.email ?? "Unknown";
     final String teacherDisplayName = "Prof. ${userEmail.split('@')[0]}";
 
@@ -104,15 +99,12 @@ class _RoomListViewState extends State<RoomListView> {
         'override_hour': hour,
         'status': status,
         'subject_name': subjectName,
-        'teacher_name': teacherDisplayName, // Saving the display name
+        'teacher_name': teacherDisplayName,
         'teacher_id': supabase.auth.currentUser!.id
       }, onConflict: 'room_id,override_date,override_hour');
-
       setState(() {});
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -120,24 +112,19 @@ class _RoomListViewState extends State<RoomListView> {
   Widget build(BuildContext context) {
     final supabase = Supabase.instance.client;
     final String todayDate = DateTime.now().toIso8601String().split('T')[0];
-
-    // =========================================================================
-    // 🛠️ TESTING MODE:
-    // To go back to normal mode: Change '10' to 'DateTime.now().hour'
     final int currentHourInt = 10;
-    // =========================================================================
-
     final String currentHourString = "${currentHourInt.toString().padLeft(2, '0')}:00";
-    final String nextHourString = "${(currentHourInt + 1).toString().padLeft(2, '0')}:00";
-    final String timeSlotRange = "$currentHourString - $nextHourString";
+    final String timeSlotRange = "$currentHourString - ${(currentHourInt + 1).toString().padLeft(2, '0')}:00";
     final String timeColumn = _getCurrentTimeColumn(currentHourInt);
     final bool isClosed = currentHourInt < 8 || currentHourInt >= 18;
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text("${widget.buildingName} - Floor ${widget.floor}"),
-        backgroundColor: widget.color,
+        backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: FutureBuilder(
         future: Future.wait([
@@ -147,7 +134,6 @@ class _RoomListViewState extends State<RoomListView> {
         ]),
         builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
           final List rooms = snapshot.data![0];
           final List overrides = snapshot.data![1];
           final String userRole = snapshot.data![2]?['role'] ?? 'student';
@@ -159,37 +145,29 @@ class _RoomListViewState extends State<RoomListView> {
               final room = rooms[index];
               final String roomID = room['RoomID'];
               final String roomType = room['Type'] ?? "Classroom";
-
               final override = overrides.cast<Map?>().firstWhere((o) => o?['room_id'] == roomID, orElse: () => null);
 
               String subject;
               String? teacherName;
               if (override != null) {
-                subject = override['status'] == 'RESERVED'
-                    ? "${override['subject_name']} (Extra Lecture)"
-                    : 'CANCELLED (Empty)';
-                teacherName = override['teacher_name']; // Fetching from database
+                subject = override['status'] == 'RESERVED' ? "${override['subject_name']} (Extra Lecture)" : 'CANCELLED (Empty)';
+                teacherName = override['teacher_name'];
               } else {
                 subject = (room[timeColumn] ?? "Empty");
               }
 
               bool isOccupied = subject != "Empty" && !subject.contains("CANCELLED");
-
-              // Smart Conflict Prevention
-              bool isReservedByOthers = override != null &&
-                  override['status'] == 'RESERVED' &&
-                  override['teacher_id'] != supabase.auth.currentUser!.id;
-
+              bool isReservedByOthers = override != null && override['status'] == 'RESERVED' && override['teacher_id'] != supabase.auth.currentUser!.id;
               Color statusColor = roomType == "Staffroom" ? Colors.grey : (isOccupied ? Colors.red : Colors.green);
               if (isClosed && roomType != "Staffroom") statusColor = Colors.blueGrey;
 
               return Card(
-                elevation: 3,
+                elevation: 2,
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 child: ExpansionTile(
                   leading: CircleAvatar(
-                    backgroundColor: statusColor.withValues(alpha: 0.2),
+                    backgroundColor: statusColor.withOpacity(0.1),
                     child: Icon(roomType == "Staffroom" ? Icons.lock : Icons.meeting_room, color: statusColor),
                   ),
                   title: Text("Room $roomID", style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -197,12 +175,7 @@ class _RoomListViewState extends State<RoomListView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(subject, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
-                      // UI UPGRADE: Show the professor's name for transparency
-                      if (teacherName != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2.0),
-                          child: Text("👤 $teacherName", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontStyle: FontStyle.italic)),
-                        ),
+                      if (teacherName != null) Text("👤 $teacherName", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontStyle: FontStyle.italic)),
                       Text("🕒 Time: $timeSlotRange", style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
                   ),
@@ -217,10 +190,8 @@ class _RoomListViewState extends State<RoomListView> {
                           if (roomType == "Staffroom") ...[
                             const Divider(),
                             const Text("⚠️ STAFFROOM: Status locked.", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                          ]
-                          else if (isReservedByOthers)
-                            const Text("🔒 Reserved by another professor. Only they can modify this slot.",
-                                style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.bold))
+                          ] else if (isReservedByOthers)
+                            const Text("🔒 Reserved by another professor.", style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.bold))
                           else if (userRole == 'teacher' && !isClosed) ...[
                               const Divider(),
                               const SizedBox(height: 5),

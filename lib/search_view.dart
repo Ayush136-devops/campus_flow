@@ -5,19 +5,15 @@ class SearchView extends StatefulWidget {
   const SearchView({super.key});
 
   @override
-  State<SearchView> createState() => _SearchViewState(); // FIXED: Mapped to correct class name
+  State<SearchView> createState() => _SearchViewState();
 }
 
-class _SearchViewState extends State<SearchView> { // FIXED: Changed from _SearchViewController
+class _SearchViewState extends State<SearchView> {
   final TextEditingController _searchController = TextEditingController();
-  List<dynamic> _searchResults = [];
+  List _searchResults = [];
   bool _isLoading = false;
 
-  // =========================================================================
-  // 🛠️ TESTING MODE:
-  // Change '11' to 'DateTime.now().hour' for normal mode
   final int testHour = 11;
-  // =========================================================================
 
   String _getCurrentTimeColumn() {
     final now = DateTime.now();
@@ -25,7 +21,7 @@ class _SearchViewState extends State<SearchView> { // FIXED: Changed from _Searc
     return "${days[now.weekday - 1]}_${testHour.toString().padLeft(2, '0')}:00";
   }
 
-  Future<void> _performSearch(String query) async {
+  Future _performSearch(String query) async {
     if (query.isEmpty) return;
     if (testHour < 8 || testHour >= 18) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("College is closed in Test Mode.")));
@@ -37,9 +33,7 @@ class _SearchViewState extends State<SearchView> { // FIXED: Changed from _Searc
     final supabase = Supabase.instance.client;
 
     try {
-      final response = await supabase.from('timetables').select()
-          .ilike(timeColumn, '%$query%')
-          .order('Building', ascending: true);
+      final response = await supabase.from('timetables').select().ilike(timeColumn, '%$query%').order('Building', ascending: true);
       setState(() { _searchResults = response; _isLoading = false; });
     } catch (e) {
       setState(() => _isLoading = false);
@@ -53,19 +47,16 @@ class _SearchViewState extends State<SearchView> { // FIXED: Changed from _Searc
     final String timeSlotRange = "${testHour.toString().padLeft(2, '0')}:00 - ${(testHour + 1).toString().padLeft(2, '0')}:00";
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: TextField(
           controller: _searchController,
           autofocus: true,
-          decoration: InputDecoration(
-            hintText: "Search 'Empty' (Hour: $testHour:00)",
-            border: InputBorder.none,
-            hintStyle: const TextStyle(color: Colors.white70),
-          ),
+          decoration: const InputDecoration(hintText: "Search 'Empty'...", border: InputBorder.none, hintStyle: TextStyle(color: Colors.white70)),
           style: const TextStyle(color: Colors.white, fontSize: 18),
           onSubmitted: _performSearch,
         ),
-        backgroundColor: Colors.indigo[900],
+        backgroundColor: const Color(0xFF1E3A8A),
       ),
       body: isClosed
           ? _buildClosedMessage()
@@ -104,10 +95,13 @@ class _SearchViewState extends State<SearchView> { // FIXED: Changed from _Searc
         final bool isEmpty = subject == "Empty";
 
         return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: Icon(Icons.circle, color: isEmpty ? Colors.green : Colors.red),
-            title: Text("Room ${room['RoomID']} - ${room['Building']}"),
-            subtitle: Text("🕒 Time: $timeSlot"), //
+            title: Text("Room ${room['RoomID']} - ${room['Building']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("🕒 Time: $timeSlot"),
             trailing: Text(subject, style: TextStyle(fontWeight: FontWeight.bold, color: isEmpty ? Colors.green : Colors.indigo[900])),
           ),
         );
@@ -115,7 +109,5 @@ class _SearchViewState extends State<SearchView> { // FIXED: Changed from _Searc
     );
   }
 
-  Widget _buildClosedMessage() {
-    return const Center(child: Text("College is closed. Search resumes at 8 AM."));
-  }
+  Widget _buildClosedMessage() => const Center(child: Text("College is closed. Search resumes at 8 AM."));
 }
