@@ -20,6 +20,7 @@ class _RoomListViewState extends State<RoomListView> {
     return "${days[now.weekday - 1]}_${hour.toString().padLeft(2, '0')}:00";
   }
 
+  // 1. DOUBLE FACTOR CONFIRMATION DIALOG
   Future<void> _showCancelConfirmation(String roomID, String hour) async {
     final TextEditingController confirmController = TextEditingController();
     return showDialog(
@@ -29,11 +30,11 @@ class _RoomListViewState extends State<RoomListView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("To cancel Room $roomID, please type 'CANCEL' to confirm."),
+            Text("To cancel the lecture in Room $roomID, please type 'CANCEL' to confirm."),
             const SizedBox(height: 15),
             TextField(
               controller: confirmController,
-              decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "CANCEL"),
+              decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "Type CANCEL"),
             ),
           ],
         ),
@@ -54,6 +55,7 @@ class _RoomListViewState extends State<RoomListView> {
     );
   }
 
+  // 2. EXTRA LECTURE FORM
   Future<void> _showScheduleForm(String roomID, String hour) async {
     final TextEditingController subjectController = TextEditingController();
     return showDialog(
@@ -63,11 +65,11 @@ class _RoomListViewState extends State<RoomListView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Reserving Room $roomID for the $hour slot."),
+            Text("You are reserving Room $roomID for the $hour slot."),
             const SizedBox(height: 15),
             TextField(
               controller: subjectController,
-              decoration: const InputDecoration(border: OutlineInputBorder(), labelText: "Subject Name"),
+              decoration: const InputDecoration(border: OutlineInputBorder(), labelText: "Enter Subject Name"),
             ),
           ],
         ),
@@ -91,16 +93,27 @@ class _RoomListViewState extends State<RoomListView> {
     final supabase = Supabase.instance.client;
     final String todayDate = DateTime.now().toIso8601String().split('T')[0];
 
-    await supabase.from('overrides').upsert({
-      'room_id': roomID,
-      'override_date': todayDate,
-      'override_hour': hour,
-      'status': status,
-      'subject_name': subjectName,
-      'teacher_id': supabase.auth.currentUser!.id
-    }, onConflict: 'room_id,override_date,override_hour');
 
-    setState(() {});
+    final String userEmail = supabase.auth.currentUser?.email ?? "Unknown";
+    final String teacherDisplayName = "Prof. ${userEmail.split('@')[0]}";
+
+    try {
+      await supabase.from('overrides').upsert({
+        'room_id': roomID,
+        'override_date': todayDate,
+        'override_hour': hour,
+        'status': status,
+        'subject_name': subjectName,
+        'teacher_name': teacherDisplayName, // Saving the display name
+        'teacher_id': supabase.auth.currentUser!.id
+      }, onConflict: 'room_id,override_date,override_hour');
+
+      setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    }
   }
 
   @override
@@ -108,8 +121,11 @@ class _RoomListViewState extends State<RoomListView> {
     final supabase = Supabase.instance.client;
     final String todayDate = DateTime.now().toIso8601String().split('T')[0];
 
-    // TESTING MODE
+    // =========================================================================
+    // 🛠️ TESTING MODE:
+    // To go back to normal mode: Change '10' to 'DateTime.now().hour'
     final int currentHourInt = 10;
+    // =========================================================================
 
     final String currentHourString = "${currentHourInt.toString().padLeft(2, '0')}:00";
     final String nextHourString = "${(currentHourInt + 1).toString().padLeft(2, '0')}:00";
@@ -147,22 +163,25 @@ class _RoomListViewState extends State<RoomListView> {
               final override = overrides.cast<Map?>().firstWhere((o) => o?['room_id'] == roomID, orElse: () => null);
 
               String subject;
+              String? teacherName;
               if (override != null) {
                 subject = override['status'] == 'RESERVED'
                     ? "${override['subject_name']} (Extra Lecture)"
                     : 'CANCELLED (Empty)';
+                teacherName = override['teacher_name']; // Fetching from database
               } else {
                 subject = (room[timeColumn] ?? "Empty");
               }
 
               bool isOccupied = subject != "Empty" && !subject.contains("CANCELLED");
 
-              // SMART CONFLICT PREVENTION: Check if someone else reserved this
+              // Smart Conflict Prevention
               bool isReservedByOthers = override != null &&
                   override['status'] == 'RESERVED' &&
                   override['teacher_id'] != supabase.auth.currentUser!.id;
 
               Color statusColor = roomType == "Staffroom" ? Colors.grey : (isOccupied ? Colors.red : Colors.green);
+              if (isClosed && roomType != "Staffroom") statusColor = Colors.blueGrey;
 
               return Card(
                 elevation: 3,
@@ -178,7 +197,13 @@ class _RoomListViewState extends State<RoomListView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(subject, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
-                      Text("🕒 Time Slot: $timeSlotRange", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      // UI UPGRADE: Show the professor's name for transparency
+                      if (teacherName != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2.0),
+                          child: Text("👤 $teacherName", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontStyle: FontStyle.italic)),
+                        ),
+                      Text("🕒 Time: $timeSlotRange", style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
                   ),
                   children: [
@@ -187,14 +212,18 @@ class _RoomListViewState extends State<RoomListView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (roomType == "Staffroom")
-                            const Text("⚠️ Staffroom: Modifications locked.", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+                          Text("📍 Type: $roomType | Dept: ${room['Department'] ?? 'General'}", style: const TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 10),
+                          if (roomType == "Staffroom") ...[
+                            const Divider(),
+                            const Text("⚠️ STAFFROOM: Status locked.", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                          ]
                           else if (isReservedByOthers)
-                          // Warn that this class is already reserved
                             const Text("🔒 Reserved by another professor. Only they can modify this slot.",
                                 style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.bold))
                           else if (userRole == 'teacher' && !isClosed) ...[
                               const Divider(),
+                              const SizedBox(height: 5),
                               SizedBox(
                                 width: double.infinity,
                                 child: isOccupied
