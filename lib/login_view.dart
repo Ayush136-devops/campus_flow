@@ -68,8 +68,16 @@ class _LoginViewState extends State<LoginView> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Logo
-              Image.asset('assets/logo.png', height: 180), // Update with your actual asset path
-              const SizedBox(height: 40),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(45), // Adjust this number for more/less rounding
+                child: Image.asset(
+                  'assets/logo.png',
+                  height: 180,
+                  width: 180, // Adding width ensures a perfect square for rounding
+                  fit: BoxFit.cover, // This ensures the image fills the rounded area properly
+                ),
+              ),
+              const SizedBox(height: 80),
 
               // Username Field
               TextField(
