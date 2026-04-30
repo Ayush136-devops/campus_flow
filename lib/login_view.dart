@@ -118,7 +118,7 @@ class _LoginViewState extends State<LoginView> {
                   minimumSize: const Size(200, 50),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
-                child: const Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: const Text("Login/Signup", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
 
               const SizedBox(height: 30),
