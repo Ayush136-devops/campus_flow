@@ -185,7 +185,7 @@ class _RoomListViewState extends State<RoomListView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("📍 Type: $roomType | Dept: ${room['Department'] ?? 'General'}", style: const TextStyle(color: Colors.grey)),
+                          Text(" Type: $roomType | Dept: ${room['Department'] ?? 'General'}", style: const TextStyle(color: Colors.grey)),
                           const SizedBox(height: 10),
                           if (roomType == "Staffroom") ...[
                             const Divider(),

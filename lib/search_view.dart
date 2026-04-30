@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'room_list_view.dart';
 
 class SearchView extends StatefulWidget {
   const SearchView({super.key});
@@ -21,7 +22,7 @@ class _SearchViewState extends State<SearchView> {
     return "${days[now.weekday - 1]}_${testHour.toString().padLeft(2, '0')}:00";
   }
 
-  Future _performSearch(String query) async {
+  Future<void> _performSearch(String query) async {
     if (query.isEmpty) return;
 
     if (testHour < 8 || testHour >= 18) {
@@ -34,7 +35,6 @@ class _SearchViewState extends State<SearchView> {
     final supabase = Supabase.instance.client;
 
     try {
-      // 🛡️ THE FIX: Wrap timeColumn in double quotes like this: '"$timeColumn"'
       final response = await supabase
           .from('timetables')
           .select()
@@ -47,9 +47,7 @@ class _SearchViewState extends State<SearchView> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-
-      if (!mounted) return; // Prevents the context error we discussed earlier
-
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: ${e.toString()}")),
       );
@@ -64,10 +62,18 @@ class _SearchViewState extends State<SearchView> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: TextField(
           controller: _searchController,
           autofocus: true,
-          decoration: const InputDecoration(hintText: "Search 'Empty'...", border: InputBorder.none, hintStyle: TextStyle(color: Colors.white70)),
+          decoration: const InputDecoration(
+              hintText: "Search 'Empty' or 'Subject'...",
+              border: InputBorder.none,
+              hintStyle: TextStyle(color: Colors.white70)
+          ),
           style: const TextStyle(color: Colors.white, fontSize: 18),
           onSubmitted: _performSearch,
         ),
@@ -88,11 +94,17 @@ class _SearchViewState extends State<SearchView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text("Type 'Empty' to find free rooms"),
+          Icon(Icons.search_rounded, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          const Text("Type 'Empty' to find free rooms", style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 10),
           ActionChip(
-            label: const Text("Find Free Rooms Now"),
-            onPressed: () { _searchController.text = "Empty"; _performSearch("Empty"); },
+            backgroundColor: Colors.indigo[50],
+            label: const Text("Find Free Rooms Now", style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+            onPressed: () {
+              _searchController.text = "Empty";
+              _performSearch("Empty");
+            },
           ),
         ],
       ),
@@ -106,23 +118,48 @@ class _SearchViewState extends State<SearchView> {
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
         final room = _searchResults[index];
-        final subject = room[timeColumn] ?? "Empty";
-        final bool isEmpty = subject == "Empty";
+        final String subject = room[timeColumn] ?? "Empty";
+        final bool isEmpty = subject == "Empty" || subject.contains("CANCELLED");
 
         return Card(
           elevation: 2,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RoomListView(
+                    buildingName: room['Building'].toString(),
+                    floor: room['Floor'] ?? 1,
+                    // FIXED: Passed the required color parameter[cite: 3]
+                    color: const Color(0xFF1E3A8A),
+                  ),
+                ),
+              );
+            },
             leading: Icon(Icons.circle, color: isEmpty ? Colors.green : Colors.red),
             title: Text("Room ${room['RoomID']} - ${room['Building']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text("🕒 Time: $timeSlot"),
-            trailing: Text(subject, style: TextStyle(fontWeight: FontWeight.bold, color: isEmpty ? Colors.green : Colors.indigo[900])),
+            subtitle: Text("🕒 Slot: $timeSlot"),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                    isEmpty ? "FREE" : "BUSY",
+                    style: TextStyle(fontWeight: FontWeight.bold, color: isEmpty ? Colors.green : Colors.red)
+                ),
+                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildClosedMessage() => const Center(child: Text("College is closed. Search resumes at 8 AM."));
+  Widget _buildClosedMessage() => const Center(
+      child: Text("College is closed. Search resumes at 8 AM.", style: TextStyle(fontWeight: FontWeight.bold))
+  );
 }
