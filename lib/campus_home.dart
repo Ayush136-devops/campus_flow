@@ -29,17 +29,13 @@ class _CampusHomeState extends State<CampusHome> {
     });
   }
 
-  // Helper function to format email handles into Full Names
+  // format email handles into Full Names
   String _formatDisplayName(String email) {
     if (email == 'Guest') return 'Guest';
 
-    // 1. Get the part before @
     String handle = email.split('@')[0];
-
-    // 2. Remove numbers (e.g., "ayush.khatal24" -> "ayush.khatal")
     String cleanHandle = handle.replaceAll(RegExp(r'\d'), '');
 
-    // 3. Split by dot, capitalize each part, and join with space
     return cleanHandle.split('.').map((str) {
       if (str.isEmpty) return "";
       return str[0].toUpperCase() + str.substring(1).toLowerCase();
@@ -88,7 +84,6 @@ class _CampusHomeState extends State<CampusHome> {
 
     final userEmail = supabase.auth.currentUser?.email ?? 'Guest';
 
-    // 🚀 NEW LOGIC: Formats "ayush.khatal24" to "Ayush Khatal"
     final displayName = _formatDisplayName(userEmail);
 
     return Scaffold(

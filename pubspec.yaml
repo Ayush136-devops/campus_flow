@@ -20,14 +20,17 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
 
-flutter_icons:
+# 🚀 CORRECTED KEY: Changed from flutter_icons to flutter_launcher_icons
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/logo.png"
+  # Optional: Adds a professional look for modern Android devices
+  adaptive_icon_background: "#1E3A8A"
+  adaptive_icon_foreground: "assets/logo.png"
 
 flutter:
   uses-material-design: true
 
-  # Asset declaration starts here
   assets:
     - assets/logo.png

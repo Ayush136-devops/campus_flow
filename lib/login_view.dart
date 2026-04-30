@@ -67,19 +67,18 @@ class _LoginViewState extends State<LoginView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo
               ClipRRect(
-                borderRadius: BorderRadius.circular(45), // Adjust this number for more/less rounding
+                borderRadius: BorderRadius.circular(45),
                 child: Image.asset(
                   'assets/logo.png',
                   height: 180,
-                  width: 180, // Adding width ensures a perfect square for rounding
-                  fit: BoxFit.cover, // This ensures the image fills the rounded area properly
+                  width: 180,
+                  fit: BoxFit.cover,
                 ),
               ),
               const SizedBox(height: 80),
 
-              // Username Field
+
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
@@ -91,7 +90,7 @@ class _LoginViewState extends State<LoginView> {
               ),
               const SizedBox(height: 20),
 
-              // Password Field
+
               TextField(
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,

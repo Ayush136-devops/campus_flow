@@ -14,17 +14,17 @@ class RoomListView extends StatefulWidget {
 
 class _RoomListViewState extends State<RoomListView> {
 
-  // HELPER: Formats "English (om.kharate24@vit.edu)" to "English (Prof. Om Kharate)"
+
   String _formatDisplaySubject(String sub) {
     if (!sub.contains('@') || !sub.contains('(')) return sub;
     try {
       final parts = sub.split(' (');
       final subjectName = parts[0];
 
-      // 1. Get the handle and remove numbers (e.g., om.kharate24 -> om.kharate)
+
       String handle = parts[1].split('@')[0].replaceAll(RegExp(r'\d'), '');
 
-      // 2. Capitalize parts and join (e.g., om.kharate -> Om Kharate)
+
       final formattedName = handle.split('.').map((str) {
         if (str.isEmpty) return "";
         return str[0].toUpperCase() + str.substring(1).toLowerCase();
