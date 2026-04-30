@@ -13,6 +13,30 @@ class RoomListView extends StatefulWidget {
 }
 
 class _RoomListViewState extends State<RoomListView> {
+
+  // HELPER: Formats "English (om.kharate24@vit.edu)" to "English (Prof. Om Kharate)"
+  String _formatDisplaySubject(String sub) {
+    if (!sub.contains('@') || !sub.contains('(')) return sub;
+    try {
+      final parts = sub.split(' (');
+      final subjectName = parts[0];
+
+      // 1. Get the handle and remove numbers (e.g., om.kharate24 -> om.kharate)
+      String handle = parts[1].split('@')[0].replaceAll(RegExp(r'\d'), '');
+
+      // 2. Capitalize parts and join (e.g., om.kharate -> Om Kharate)
+      final formattedName = handle.split('.').map((str) {
+        if (str.isEmpty) return "";
+        return str[0].toUpperCase() + str.substring(1).toLowerCase();
+      }).join(' ');
+
+      // 3. Return with Prof. prefix
+      return "$subjectName (Prof. $formattedName)";
+    } catch (e) {
+      return sub;
+    }
+  }
+
   String _getCurrentTimeColumn(int hour) {
     final now = DateTime.now();
     final days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -62,11 +86,11 @@ class _RoomListViewState extends State<RoomListView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("You are reserving Room $roomID for the $hour slot."),
+            const Text("Enter the subject name for this extra lecture."),
             const SizedBox(height: 15),
             TextField(
               controller: subjectController,
-              decoration: const InputDecoration(border: OutlineInputBorder(), labelText: "Enter Subject Name"),
+              decoration: const InputDecoration(border: OutlineInputBorder(), labelText: "Subject Name"),
             ),
           ],
         ),
@@ -79,7 +103,7 @@ class _RoomListViewState extends State<RoomListView> {
                 Navigator.pop(context);
               }
             },
-            child: const Text("Save & Schedule"),
+            child: const Text("Schedule"),
           ),
         ],
       ),
@@ -90,7 +114,15 @@ class _RoomListViewState extends State<RoomListView> {
     final supabase = Supabase.instance.client;
     final String todayDate = DateTime.now().toIso8601String().split('T')[0];
     final String userEmail = supabase.auth.currentUser?.email ?? "Unknown";
-    final String teacherDisplayName = "Prof. ${userEmail.split('@')[0]}";
+
+    // FORMATTING THE TEACHER NAME FOR THE DATABASE OVERRIDE
+    String handle = userEmail.split('@')[0].replaceAll(RegExp(r'\d'), '');
+    String formattedName = handle.split('.').map((str) {
+      if (str.isEmpty) return "";
+      return str[0].toUpperCase() + str.substring(1).toLowerCase();
+    }).join(' ');
+
+    final String teacherDisplayName = "Prof. $formattedName";
 
     try {
       await supabase.from('overrides').upsert({
@@ -137,6 +169,7 @@ class _RoomListViewState extends State<RoomListView> {
           final List rooms = snapshot.data![0];
           final List overrides = snapshot.data![1];
           final String userRole = snapshot.data![2]?['role'] ?? 'student';
+          final String userEmail = supabase.auth.currentUser?.email ?? "";
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -157,7 +190,10 @@ class _RoomListViewState extends State<RoomListView> {
               }
 
               bool isOccupied = subject != "Empty" && !subject.contains("CANCELLED");
-              bool isReservedByOthers = override != null && override['status'] == 'RESERVED' && override['teacher_id'] != supabase.auth.currentUser!.id;
+              bool canCancel = subject.contains(userEmail) || (override != null && override['teacher_id'] == supabase.auth.currentUser!.id);
+
+              String displaySubject = _formatDisplaySubject(subject);
+
               Color statusColor = roomType == "Staffroom" ? Colors.grey : (isOccupied ? Colors.red : Colors.green);
               if (isClosed && roomType != "Staffroom") statusColor = Colors.blueGrey;
 
@@ -174,7 +210,7 @@ class _RoomListViewState extends State<RoomListView> {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(subject, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
+                      Text(displaySubject, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
                       if (teacherName != null) Text("👤 $teacherName", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontStyle: FontStyle.italic)),
                       Text("🕒 Time: $timeSlotRange", style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
@@ -185,16 +221,18 @@ class _RoomListViewState extends State<RoomListView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(" Type: $roomType | Dept: ${room['Department'] ?? 'General'}", style: const TextStyle(color: Colors.grey)),
+                          Text("Type: $roomType | Dept: ${room['Department'] ?? 'General'}", style: const TextStyle(color: Colors.grey)),
                           const SizedBox(height: 10),
                           if (roomType == "Staffroom") ...[
                             const Divider(),
                             const Text("⚠️ STAFFROOM: Status locked.", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                          ] else if (isReservedByOthers)
-                            const Text("🔒 Reserved by another professor.", style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.bold))
-                          else if (userRole == 'teacher' && !isClosed) ...[
-                              const Divider(),
-                              const SizedBox(height: 5),
+                          ] else if (userRole == 'teacher' && !isClosed) ...[
+                            const Divider(),
+                            const SizedBox(height: 5),
+                            if (isOccupied && !canCancel)
+                              const Text("🔒 Only the assigned Professor can cancel this class.",
+                                  style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.bold))
+                            else
                               SizedBox(
                                 width: double.infinity,
                                 child: isOccupied
@@ -211,7 +249,7 @@ class _RoomListViewState extends State<RoomListView> {
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
                                 ),
                               ),
-                            ],
+                          ],
                         ],
                       ),
                     )

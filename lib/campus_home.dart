@@ -29,6 +29,23 @@ class _CampusHomeState extends State<CampusHome> {
     });
   }
 
+  // Helper function to format email handles into Full Names
+  String _formatDisplayName(String email) {
+    if (email == 'Guest') return 'Guest';
+
+    // 1. Get the part before @
+    String handle = email.split('@')[0];
+
+    // 2. Remove numbers (e.g., "ayush.khatal24" -> "ayush.khatal")
+    String cleanHandle = handle.replaceAll(RegExp(r'\d'), '');
+
+    // 3. Split by dot, capitalize each part, and join with space
+    return cleanHandle.split('.').map((str) {
+      if (str.isEmpty) return "";
+      return str[0].toUpperCase() + str.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   void _openQRScanner() {
     showModalBottomSheet(
       context: context,
@@ -69,10 +86,10 @@ class _CampusHomeState extends State<CampusHome> {
   Widget build(BuildContext context) {
     final supabase = Supabase.instance.client;
 
-    final userEmail =
-        supabase.auth.currentUser?.email ?? 'Guest';
+    final userEmail = supabase.auth.currentUser?.email ?? 'Guest';
 
-    final userName = userEmail.split('@')[0];
+    // 🚀 NEW LOGIC: Formats "ayush.khatal24" to "Ayush Khatal"
+    final displayName = _formatDisplayName(userEmail);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -102,8 +119,7 @@ class _CampusHomeState extends State<CampusHome> {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                    const LoginView(),
+                    builder: (context) => const LoginView(),
                   ),
                 );
               }
@@ -131,8 +147,7 @@ class _CampusHomeState extends State<CampusHome> {
             ),
 
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   "CAMPUS FLOW",
@@ -147,7 +162,7 @@ class _CampusHomeState extends State<CampusHome> {
                 const SizedBox(height: 8),
 
                 Text(
-                  "Welcome, $userName",
+                  "Welcome, $displayName",
                   style: const TextStyle(
                     fontSize: 15,
                     color: Colors.white70,
@@ -166,103 +181,64 @@ class _CampusHomeState extends State<CampusHome> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
-                _buildingCard(
-                  "Building 1",
-                  Icons.business,
-                  Colors.blue,
-                ),
-                _buildingCard(
-                  "Building 2",
-                  Icons.apartment,
-                  Colors.orange,
-                ),
-                _buildingCard(
-                  "Building 3",
-                  Icons.corporate_fare,
-                  Colors.green,
-                ),
-                _buildingCard(
-                  "Building 4",
-                  Icons.foundation,
-                  Colors.purple,
-                ),
+                _buildingCard("Building 1", Icons.business, Colors.blue),
+                _buildingCard("Building 2", Icons.apartment, Colors.orange),
+                _buildingCard("Building 3", Icons.corporate_fare, Colors.green),
+                _buildingCard("Building 4", Icons.foundation, Colors.purple),
               ],
             ),
           ),
         ],
       ),
 
-      floatingActionButton:
-      FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-              const SearchView(),
+              builder: (context) => const SearchView(),
             ),
           );
         },
         label: const Text("Find Any Room"),
         icon: const Icon(Icons.search),
-        backgroundColor:
-        const Color(0xFF1E3A8A),
+        backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildingCard(
-      String name,
-      IconData icon,
-      Color color,
-      ) {
+  Widget _buildingCard(String name, IconData icon, Color color) {
     return OpenContainer(
-      transitionDuration:
-      const Duration(milliseconds: 600),
-
+      transitionDuration: const Duration(milliseconds: 600),
       closedElevation: 2,
-
       closedShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-
-      closedBuilder: (context, action) =>
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius:
-              BorderRadius.circular(20),
+      closedBuilder: (context, action) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 50, color: color),
+            const SizedBox(height: 10),
+            Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
-
-            child: Column(
-              mainAxisAlignment:
-              MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 50,
-                  color: color,
-                ),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-      openBuilder: (context, action) =>
-          BuildingFloorsView(
-            buildingName: name,
-            themeColor: color,
-          ),
+          ],
+        ),
+      ),
+      openBuilder: (context, action) => BuildingFloorsView(
+        buildingName: name,
+        themeColor: color,
+      ),
     );
   }
 }
