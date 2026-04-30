@@ -21,8 +21,11 @@ class _CampusHomeState extends State<CampusHome> {
   @override
   void initState() {
     super.initState();
+
     Timer(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _isLoaded = true);
+      if (mounted) {
+        setState(() => _isLoaded = true);
+      }
     });
   }
 
@@ -35,18 +38,25 @@ class _CampusHomeState extends State<CampusHome> {
         child: MobileScanner(
           onDetect: (capture) {
             final List<Barcode> barcodes = capture.barcodes;
+
             for (final barcode in barcodes) {
               final String code = barcode.rawValue ?? "";
+
               if (code.contains(",")) {
                 final parts = code.split(",");
+
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (context) => RoomListView(
-                    buildingName: parts[0],
-                    floor: int.parse(parts[1]),
-                    color: Colors.indigo,
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RoomListView(
+                      buildingName: parts[0],
+                      floor: int.parse(parts[1]),
+                      color: Colors.indigo,
+                    ),
                   ),
-                ));
+                );
               }
             }
           },
@@ -59,32 +69,59 @@ class _CampusHomeState extends State<CampusHome> {
   Widget build(BuildContext context) {
     final supabase = Supabase.instance.client;
 
+    final userEmail =
+        supabase.auth.currentUser?.email ?? 'Guest';
+
+    final userName = userEmail.split('@')[0];
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
+
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E3A8A),
         elevation: 0,
+
         leading: IconButton(
-          icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+          icon: const Icon(
+            Icons.qr_code_scanner,
+            color: Colors.white,
+          ),
           onPressed: _openQRScanner,
         ),
+
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(
+              Icons.logout,
+              color: Colors.white,
+            ),
             onPressed: () async {
               await supabase.auth.signOut();
+
               if (context.mounted) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                    const LoginView(),
+                  ),
+                );
               }
             },
           ),
         ],
       ),
+
       body: Column(
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.only(bottom: 30, left: 20, right: 20),
+            padding: const EdgeInsets.only(
+              bottom: 30,
+              left: 20,
+              right: 20,
+              top: 10,
+            ),
             decoration: const BoxDecoration(
               color: Color(0xFF1E3A8A),
               borderRadius: BorderRadius.only(
@@ -92,17 +129,36 @@ class _CampusHomeState extends State<CampusHome> {
                 bottomRight: Radius.circular(30),
               ),
             ),
-            child: const Text(
-              "CAMPUS FLOW",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-                color: Colors.white,
-              ),
+
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "CAMPUS FLOW",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                    color: Colors.white,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  "Welcome, $userName",
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
             ),
           ),
+
           const SizedBox(height: 20),
+
           Expanded(
             child: GridView.count(
               padding: const EdgeInsets.all(20),
@@ -110,45 +166,103 @@ class _CampusHomeState extends State<CampusHome> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
-                _buildingCard("Building 1", Icons.business, Colors.blue),
-                _buildingCard("Building 2", Icons.apartment, Colors.orange),
-                _buildingCard("Building 3", Icons.corporate_fare, Colors.green),
-                _buildingCard("Building 4", Icons.foundation, Colors.purple),
+                _buildingCard(
+                  "Building 1",
+                  Icons.business,
+                  Colors.blue,
+                ),
+                _buildingCard(
+                  "Building 2",
+                  Icons.apartment,
+                  Colors.orange,
+                ),
+                _buildingCard(
+                  "Building 3",
+                  Icons.corporate_fare,
+                  Colors.green,
+                ),
+                _buildingCard(
+                  "Building 4",
+                  Icons.foundation,
+                  Colors.purple,
+                ),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchView())),
+
+      floatingActionButton:
+      FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+              const SearchView(),
+            ),
+          );
+        },
         label: const Text("Find Any Room"),
         icon: const Icon(Icons.search),
-        backgroundColor: const Color(0xFF1E3A8A),
+        backgroundColor:
+        const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildingCard(String name, IconData icon, Color color) {
+  Widget _buildingCard(
+      String name,
+      IconData icon,
+      Color color,
+      ) {
     return OpenContainer(
-      transitionDuration: const Duration(milliseconds: 600),
+      transitionDuration:
+      const Duration(milliseconds: 600),
+
       closedElevation: 2,
-      closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      closedBuilder: (context, action) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 50, color: color),
-            const SizedBox(height: 10),
-            Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
+
+      closedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
       ),
-      openBuilder: (context, action) => BuildingFloorsView(buildingName: name, themeColor: color),
+
+      closedBuilder: (context, action) =>
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+              BorderRadius.circular(20),
+            ),
+
+            child: Column(
+              mainAxisAlignment:
+              MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 50,
+                  color: color,
+                ),
+
+                const SizedBox(height: 10),
+
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+      openBuilder: (context, action) =>
+          BuildingFloorsView(
+            buildingName: name,
+            themeColor: color,
+          ),
     );
   }
 }

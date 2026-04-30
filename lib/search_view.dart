@@ -13,7 +13,7 @@ class _SearchViewState extends State<SearchView> {
   List _searchResults = [];
   bool _isLoading = false;
 
-  final int testHour = 11;
+  final int testHour = DateTime.now().hour;
 
   String _getCurrentTimeColumn() {
     final now = DateTime.now();
@@ -23,8 +23,9 @@ class _SearchViewState extends State<SearchView> {
 
   Future _performSearch(String query) async {
     if (query.isEmpty) return;
+
     if (testHour < 8 || testHour >= 18) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("College is closed in Test Mode.")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("College is closed.")));
       return;
     }
 
@@ -33,11 +34,25 @@ class _SearchViewState extends State<SearchView> {
     final supabase = Supabase.instance.client;
 
     try {
-      final response = await supabase.from('timetables').select().ilike(timeColumn, '%$query%').order('Building', ascending: true);
-      setState(() { _searchResults = response; _isLoading = false; });
+      // 🛡️ THE FIX: Wrap timeColumn in double quotes like this: '"$timeColumn"'
+      final response = await supabase
+          .from('timetables')
+          .select()
+          .ilike('"$timeColumn"', '%$query%')
+          .order('Building', ascending: true);
+
+      setState(() {
+        _searchResults = response;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Search failed. Check your connection.")));
+
+      if (!mounted) return; // Prevents the context error we discussed earlier
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
     }
   }
 

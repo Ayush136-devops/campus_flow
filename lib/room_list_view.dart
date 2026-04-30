@@ -112,7 +112,7 @@ class _RoomListViewState extends State<RoomListView> {
   Widget build(BuildContext context) {
     final supabase = Supabase.instance.client;
     final String todayDate = DateTime.now().toIso8601String().split('T')[0];
-    final int currentHourInt = 10;
+    final int currentHourInt = DateTime.now().hour;
     final String currentHourString = "${currentHourInt.toString().padLeft(2, '0')}:00";
     final String timeSlotRange = "$currentHourString - ${(currentHourInt + 1).toString().padLeft(2, '0')}:00";
     final String timeColumn = _getCurrentTimeColumn(currentHourInt);
