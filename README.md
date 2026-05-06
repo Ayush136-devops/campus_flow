@@ -1,4 +1,4 @@
-# 🎓 Campus Flow
+# Campus Flow
 ### Intelligent Campus Navigation & Room Management System
 
 > Real-time classroom availability for students and faculty at VIT Pune — no more wandering between buildings looking for an empty room.
