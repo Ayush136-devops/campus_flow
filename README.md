@@ -5,7 +5,7 @@
 
 ---
 
-## About
+## About the Project
 
 Campus Flow is a mobile application built to replace manual room-tracking systems at large educational institutions. It gives students and faculty instant, real-time visibility into classroom and lecture hall availability across all four buildings on campus.
 
